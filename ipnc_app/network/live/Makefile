@@ -1,0 +1,70 @@
+##### Change the following for your environment:
+#CROSS_COMPILE = $(BUILD_TOOL_PREFIX)
+COMPILE_OPTS =		$(INCLUDES) -I. -O2 -DSOCKLEN_T=socklen_t -D_LARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64
+C =			c
+C_COMPILER =		$(CROSS_COMPILE)gcc
+C_FLAGS =		$(COMPILE_OPTS) $(CPPFLAGS) $(CFLAGS)
+CPP =			cpp
+CPLUSPLUS_COMPILER =	$(CROSS_COMPILE)c++
+CPLUSPLUS_FLAGS =	$(COMPILE_OPTS) -Wall -DBSD=1 $(CPPFLAGS) $(CXXFLAGS)
+OBJ =			o
+LINK =			$(CROSS_COMPILE)c++ -o
+LINK_OPTS =		-L. -s
+CONSOLE_LINK_OPTS =	$(LINK_OPTS)
+LIBRARY_LINK =		$(CROSS_COMPILE)ld -o
+LIBRARY_LINK_OPTS =	$(LINK_OPTS) -r -Bstatic
+LIB_SUFFIX =			a
+LIBS_FOR_CONSOLE_APPLICATION =
+LIBS_FOR_GUI_APPLICATION =
+EXE =
+##### End of variables to change
+APPRO_DIR = appro
+AUDIORECV_DIR = audiorecv
+LIVEMEDIA_DIR = liveMedia
+GROUPSOCK_DIR = groupsock
+USAGE_ENVIRONMENT_DIR = UsageEnvironment
+BASIC_USAGE_ENVIRONMENT_DIR = BasicUsageEnvironment
+
+TESTPROGS_DIR = testProgs
+
+MEDIA_SERVER_DIR = mediaServer
+
+PROXY_SERVER_DIR = proxyServer
+
+all:
+	$(MAKE) -C $(LIVEMEDIA_DIR)
+	$(MAKE) -C $(GROUPSOCK_DIR)
+	$(MAKE) -C $(USAGE_ENVIRONMENT_DIR)
+	$(MAKE) -C $(BASIC_USAGE_ENVIRONMENT_DIR)
+	$(MAKE) -C $(TESTPROGS_DIR)
+	$(MAKE) -C $(MEDIA_SERVER_DIR)
+	$(MAKE) -C $(PROXY_SERVER_DIR)
+	$(MAKE) -C $(APPRO_DIR)
+#	$(MAKE) -C $(AUDIORECV_DIR)
+
+#install:
+#	cd $(LIVEMEDIA_DIR) ; $(MAKE) install
+#	cd $(GROUPSOCK_DIR) ; $(MAKE) install
+#	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
+#	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
+#	cd $(TESTPROGS_DIR) ; $(MAKE) install
+#	cd $(MEDIA_SERVER_DIR) ; $(MAKE) install
+#	cd $(PROXY_SERVER_DIR) ; $(MAKE) install
+
+clean:
+	$(MAKE) -C $(LIVEMEDIA_DIR) clean
+	$(MAKE) -C $(GROUPSOCK_DIR) clean
+	$(MAKE) -C $(USAGE_ENVIRONMENT_DIR) clean
+	$(MAKE) -C $(BASIC_USAGE_ENVIRONMENT_DIR) clean
+	$(MAKE) -C $(TESTPROGS_DIR) clean
+	$(MAKE) -C $(MEDIA_SERVER_DIR) clean
+	$(MAKE) -C $(PROXY_SERVER_DIR) clean
+	$(MAKE) -C $(APPRO_DIR) clean
+#	$(MAKE) -C $(AUDIORECV_DIR) clean
+
+
+distclean: clean
+	-rm -f $(LIVEMEDIA_DIR)/Makefile $(GROUPSOCK_DIR)/Makefile \
+	  $(USAGE_ENVIRONMENT_DIR)/Makefile $(BASIC_USAGE_ENVIRONMENT_DIR)/Makefile \
+	  $(TESTPROGS_DIR)/Makefile $(MEDIA_SERVER_DIR)/Makefile \
+	  $(PROXY_SERVER_DIR)/Makefile Makefile

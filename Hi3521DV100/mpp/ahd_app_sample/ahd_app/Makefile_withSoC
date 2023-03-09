@@ -1,0 +1,183 @@
+#######################################################
+#
+# Makefile for NextChip Demo Board
+#
+#######################################################
+
+include ../../Makefile.param
+
+NFS_PATH	= /nfs/$(shell whoami)/raptor3/
+PROJ_HOME	= $(PWD)
+
+TARGET_APP	= dvr
+
+STRIP:=$(CROSS)strip
+
+DATE = $(shell date '+%y%m%d_%H%M%S')
+
+ifndef BUILD_VERBOSE
+	BUILD_VERBOSE = 0
+	Q = @
+endif
+
+###############################################################################
+SDK_DIR:=$(PWD)/../../..
+PUB_PATH:=$(SDK_DIR)/pub
+EXTDRV_PATH:=$(SDK_DIR)/extdrv/
+MPP_PATH:=$(PWD)/../../
+LIB_PATH:=$(MPP_PATH)/lib
+NC_LIB_PATH:=$(PROJ_HOME)/lib
+NC_INC_PATH:=$(PROJ_HOME)/inc
+COMPONENT_PATH:=$(MPP_PATH)/lib
+COMMON_DIR:=$(MPP_PATH)/sample/common/
+VIDEO_DECODER_PATH:=$(PROJ_HOME)/../video_decoder
+
+LIBS := $(LIB_PATH)/libhdmi.a \
+	$(LIB_PATH)/libive.a \
+	$(LIB_PATH)/libtde.a \
+	$(LIB_PATH)/libmpi.a \
+	$(LIB_PATH)/libmd.a \
+	$(LIB_PATH)/libjpeg.a \
+	$(LIB_PATH)/libVoiceEngine.a \
+	$(LIB_PATH)/libdnvqe.a \
+	$(LIB_PATH)/libupvqe.a 
+
+
+INC_PATH:=-I$(PUB_PATH)/include 			\
+	-I$(PUB_PATH)/kbuild-FULL_REL/include 	\
+	-I$(MPP_PATH)/include 					\
+	-I$(MPP_PATH)/common					\
+	-I$(MPP_PATH)/$(EXTDRV) 				\
+	-I$(SDK_DIR) 							\
+	-I$(EXTDRV_PATH)
+
+INCDIR	+= -I$(PROJ_HOME)
+INCDIR	+= -I$(PROJ_HOME)/include
+
+INCDIR	+= -I$(PROJ_HOME)/../soc
+INCDIR	+= -I$(PROJ_HOME)/../soc/hi3531
+
+LIBDIR	+= -L$(PROJ_HOME)/../../lib
+LIBS	+= -ldl
+LIBS	+= -lpthread
+LIBS	+= -lm
+
+###############################################################################
+
+DEFINES += -DDEBUG
+DEFINES += -DSUPPORT_DEBUG_MODE
+DEFINES += -DSUPPORT_DEBUG_MESG
+
+DEFINES += -D_GNU_SOURCE
+DEFINES += -DUSE_MALLOC_DEBUG
+
+#DEFINES += -DHI_CHIP_HI3531D
+
+#DEFINES += -DSUPPORT_3520D_6158C
+
+# For TVI 5M 20P Support
+DEFINES += -DSUPPORT_TVI_5M_20P
+
+# For TVI 8M Support
+DEFINES += -DSUPPORT_TVI_8M
+
+# For AHD / CVI 1M Accuracy Up Support
+DEFINES += -DSUPPORT_AHD_CVI_1M_ACCURACY_UP
+
+# For TVI 1M A to B Function Enable
+DEFINES += -DSUPPORT_TVI_1M_A_2_B
+
+# For AHD / CVI 2M Accuracy Up Support ( Special Camera Only )
+#DEFINES += -DSUPPORT_AHD_CVI_2M_ACCURACY_UP
+
+# For Sample
+DEFINES += -DUSE_SOC_API
+
+# For Debug
+#DEFINES += -D__DEBUG_MSG
+
+
+###############################################################################
+
+CFLAGS = $(INCDIR) $(INC_PATH) $(DEFINES) -g -Wno-unused-but-set-variable
+CFLAGS += -march=armv7-a -mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=vfpv4
+CXXFlAGS +=-march=armv7-a -mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=vfpv4
+LFLAGS = $(LIBDIR) $(LIBS)
+SUB_DIR=	`find ./ -type d`
+API_DIR=	`find ../soc/hi3531/ -type d`
+
+###############################################################################
+
+COMM_SRC := $(wildcard $(COMMON_DIR)/*.c)
+COMM_OBJ := $(COMM_SRC:%.c=%.o)
+
+OBJECTS=	main_sample_thread.o \
+			../soc/hi3531/soc_api.o \
+			../soc/hi3531/nc_hi_vivo.o \
+			../soc/hi3531/nc_hi_audio.o \
+			../soc/hi3531/nc_hi_sys.o \
+
+####################
+# Video decoder
+####################
+
+INCDIR	+= -I$(VIDEO_DECODER_PATH)
+
+OBJECTS +=	$(VIDEO_DECODER_PATH)/api/raptor3_api.o\
+			$(VIDEO_DECODER_PATH)/api/video_output.o\
+			$(VIDEO_DECODER_PATH)/api/clock.o\
+			$(VIDEO_DECODER_PATH)/api/video_fmt_info.o \
+			$(VIDEO_DECODER_PATH)/api/raptor3_api_drv.o \
+			$(VIDEO_DECODER_PATH)/api/video_auto_detect.o\
+			$(VIDEO_DECODER_PATH)/api/coax.o \
+			$(VIDEO_DECODER_PATH)/api/coax_firmup.o \
+			$(VIDEO_DECODER_PATH)/api/video_auto_distance_detect.o\
+			$(VIDEO_DECODER_PATH)/api/video_auto_eq.o \
+			$(VIDEO_DECODER_PATH)/api/motion.o \
+			$(VIDEO_DECODER_PATH)/api/audio.o \
+
+all: $(TARGET_APP) install
+
+$(TARGET_APP) : $(OBJECTS) #$(COMM_OBJ)
+ifeq ($(BUILD_VERBOSE),0)
+	@echo "Linking.......	[$@]"
+endif
+	$(Q)$(CC) -o $(TARGET_APP) $(OBJECTS) $(LFLAGS) #$(COMM_OBJ)
+	@echo "copying.......	[OK]"
+	@cp -rf $(TARGET_APP) ${NFS_PATH}
+
+.c.o:
+ifeq ($(BUILD_VERBOSE),0)
+	@echo "Compiling.....	[$<]"
+endif
+	$(Q)$(CC) $(CFLAGS) -o $@ -c $<
+
+install:	$(TARGET_APP)
+	$(STRIP) $(TARGET_APP)
+	@cp -rf $(TARGET_APP) ${NFS_PATH}
+	@echo "Install.......	[OK]"
+	@rm -f main.o
+clean:
+	@for SDIR in $(SUB_DIR) ; do	\
+		rm -f $${SDIR}/*.o;			\
+		rm -f $${SDIR}/*.bak;		\
+	done;
+	@for SDIR in $(API_DIR) ; do	\
+		rm -f $${SDIR}/*.o;			\
+		rm -f $${SDIR}/*.bak;		\
+	done;
+
+	@rm -f $(TARGET_APP)
+	@rm -f $(COMM_OBJ)
+	@rm -f $(OBJECTS)
+
+	@echo "Cleaning......   [OK]"
+
+tag:
+	@ctags -R   *.c *.h * $(VIDEO_DECODER_PATH)/include
+	@echo "Making tags...   [OK]"
+
+touch:
+	@find ./ -name "*.*" -print -exec touch {} \;
+	@chmod -R 775 *
+

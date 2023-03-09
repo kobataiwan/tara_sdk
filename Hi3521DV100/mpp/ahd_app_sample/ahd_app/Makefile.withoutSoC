@@ -1,0 +1,119 @@
+#######################################################
+#
+# Makefile for NextChip Demo Board
+#
+#######################################################
+
+#include ../../Makefile.param
+include ../../sample/Makefile.param
+
+NFS_PATH	= /nfs/$(shell whoami)/raptor3/
+PROJ_HOME	= $(PWD)
+TARGET_APP	= dvr
+STRIP:=$(CROSS)strip
+
+ifndef BUILD_VERBOSE
+	BUILD_VERBOSE = 0
+	Q = @
+endif
+
+###############################################################################
+VIDEO_DECODER_PATH:=$(PWD)/../video_decoder
+INC_PATH:= -I$(PWD)/../video_decoder/include
+
+LIBS	+= -ldl
+LIBS	+= -lpthread
+LIBS	+= -lm
+
+###############################################################################
+#DEFINES += -DHI_CHIP_HI3531D
+#DEFINES += -DSUPPORT_3520D_6158C
+
+# For TVI 5M 20P Support
+#DEFINES += -DSUPPORT_TVI_5M_20P
+
+# For TVI 8M Support
+#DEFINES += -DSUPPORT_TVI_8M
+
+# For AHD / CVI 1M Accuracy Up Support
+#DEFINES += -DSUPPORT_AHD_CVI_1M_ACCURACY_UP
+
+# For TVI 1M A to B Function Enable
+#DEFINES += -DSUPPORT_TVI_1M_A_2_B
+
+# For AHD / CVI 2M Accuracy Up Support
+#DEFINES += -DSUPPORT_AHD_CVI_2M_ACCURACY_UP
+
+###############################################################################
+CFLAGS = $(INCDIR) $(INC_PATH) $(DEFINES) -g -Wno-unused-but-set-variable
+CFLAGS += -march=armv7-a -mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=vfpv4
+CXXFlAGS +=-march=armv7-a -mcpu=cortex-a9 -mfloat-abi=softfp -mfpu=vfpv4
+LFLAGS = $(LIBDIR) $(LIBS)
+SUB_DIR=	`find ./ -type d`
+
+###############################################################################
+
+COMM_SRC := $(wildcard $(COMMON_DIR)/*.c)
+COMM_OBJ := $(COMM_SRC:%.c=%.o)
+
+OBJECTS=	main_sample_thread.o \
+
+INCDIR	+= -I$(VIDEO_DECODER_PATH)
+
+OBJECTS +=	$(VIDEO_DECODER_PATH)/api/raptor3_api.o\
+			$(VIDEO_DECODER_PATH)/api/video_output.o\
+			$(VIDEO_DECODER_PATH)/api/clock.o\
+			$(VIDEO_DECODER_PATH)/api/video_fmt_info.o \
+			$(VIDEO_DECODER_PATH)/api/raptor3_api_drv.o \
+			$(VIDEO_DECODER_PATH)/api/video_auto_detect.o\
+			$(VIDEO_DECODER_PATH)/api/coax.o \
+			$(VIDEO_DECODER_PATH)/api/coax_firmup.o \
+			$(VIDEO_DECODER_PATH)/api/video_auto_distance_detect.o\
+			$(VIDEO_DECODER_PATH)/api/video_auto_eq.o \
+			$(VIDEO_DECODER_PATH)/api/motion.o \
+			$(VIDEO_DECODER_PATH)/api/audio.o \
+
+all: $(TARGET_APP) install
+
+$(TARGET_APP) : $(OBJECTS) #$(COMM_OBJ)
+ifeq ($(BUILD_VERBOSE),0)
+	@echo "Linking.......	[$@]"
+endif
+	$(Q)$(CC) -o $(TARGET_APP) $(OBJECTS) $(LFLAGS) #$(COMM_OBJ)
+	@echo "copying.......	[OK]"
+#	@cp -rf $(TARGET_APP) ${NFS_PATH}
+
+.c.o:
+ifeq ($(BUILD_VERBOSE),0)
+	@echo "Compiling.....	[$<]"
+endif
+	$(Q)$(CC) $(CFLAGS) -o $@ -c $<
+
+install:	$(TARGET_APP)
+	$(STRIP) $(TARGET_APP)
+#	@cp -rf $(TARGET_APP) ${NFS_PATH}
+	@echo "Install.......	[OK]"
+	@rm -f main.o
+clean:
+	@for SDIR in $(SUB_DIR) ; do	\
+		rm -f $${SDIR}/*.o;			\
+		rm -f $${SDIR}/*.bak;		\
+	done;
+	@for SDIR in $(API_DIR) ; do	\
+		rm -f $${SDIR}/*.o;			\
+		rm -f $${SDIR}/*.bak;		\
+	done;
+
+	@rm -f $(TARGET_APP)
+	@rm -f $(COMM_OBJ)
+	@rm -f $(OBJECTS)
+
+	@echo "Cleaning......   [OK]"
+
+tag:
+	@ctags -R   *.c *.h * ../include
+	@echo "Making tags...   [OK]"
+
+touch:
+	@find ./ -name "*.*" -print -exec touch {} \;
+	@chmod -R 775 *
