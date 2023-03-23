@@ -8,12 +8,13 @@ ifeq ($(ARCH),)
     CROSS=$(AR_GCC:-gcc=-)
   else
     # default environment, use PATH variable to find executables
-    CROSS=arm-linux-gnueabi-
+    CROSS=arm-ca9-linux-gnueabihf-
   endif
 else
   # native build
   CROSS=
 endif
+LIBS_DIR=lib
 CC=$(CROSS)gcc
 STRIP=$(CROSS)strip
 AR=$(CROSS)ar

@@ -4,7 +4,8 @@ SRCROOT=..
 
 CFLAGS+=$(INC)
 
-LIBTARAVIDEOSOURCEOBJS=tara_lib.o tara_video_source.o tara_persistence.o tara_video_frame.o tara_video_encoder.o tara_info.o
+#LIBTARAVIDEOSOURCEOBJS=tara_lib.o tara_video_source.o tara_persistence.o tara_video_frame.o tara_video_encoder.o tara_info.o
+LIBTARAVIDEOSOURCEOBJS=tara_lib.o tara_video_source.o tara_persistence.o tara_video_encoder.o tara_info.o
 LIBTARAVIDEOSOURCEOBJS+=tara_feature.o
 LIBTARAVIDEOSOURCEOBJS+=tara_network.o
 LIBTARAVIDEOSOURCEOBJS+=tara_time.o
@@ -29,8 +30,8 @@ tara_video_source.o :
 tara_persistence.o :
 	$(CC) -g -c -fPIC tara_persistence.c $(CFLAGS)
 
-tara_video_frame.o :
-	$(CC) -g -fPIC -Wall -c tara_video_frame.c $(CFLAGS)
+#tara_video_frame.o :
+#	$(CC) -g -fPIC -Wall -c tara_video_frame.c $(CFLAGS)
 
 tara_video_encoder.o :
 	$(CC) -g -c -fPIC tara_video_encoder.c $(CFLAGS)

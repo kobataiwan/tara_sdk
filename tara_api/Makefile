@@ -10,7 +10,8 @@ endif
 
 SRCROOT=..
 
-TARASDKOBJS=tara_video_source.o tara_persistence.o tara_video_frame.o tara_video_encoder.o tara_info.o
+#TARASDKOBJS=tara_video_source.o tara_persistence.o tara_video_frame.o tara_video_encoder.o tara_info.o
+TARASDKOBJS=tara_video_source.o tara_persistence.o tara_video_encoder.o tara_info.o
 TARASDKOBJS+=tara_feature.o
 TARASDKOBJS+=tara_network.o
 TARASDKOBJS+=tara_time.o
@@ -23,21 +24,15 @@ TARASDKOBJS+=tara_lighting.o
 TARASDKOBJS+=tara_power.o
 LIBTARAVIDEOOBJS=tara_lib.o $(TARASDKOBJS)
 
-CFLAGS+=$(INC)
+CFLAGS+=$(INC) -mfloat-abi=hard
 
-LIBS=tarasdk
+LIBS=taraapi tarasdk
 SHAREDLIBS=libtara.so
 STATICLIBS=libtara.a
 SHARED_SUFFIX=.shared
 STATIC_SUFFIX=.static
-EXES=sample_get_jpeg_by_time$(SHARED_SUFFIX) sample_get_jpeg_by_time$(STATIC_SUFFIX) \
-     sample_get_jpeg_by_cmd$(SHARED_SUFFIX) sample_get_jpeg_by_cmd$(STATIC_SUFFIX) \
-     sample_get_frame_by_cmd$(SHARED_SUFFIX) sample_get_frame_by_cmd$(STATIC_SUFFIX) \
-     sample_get_frame_by_time$(SHARED_SUFFIX) sample_get_frame_by_time$(STATIC_SUFFIX) \
-     sample_get_video_frame$(SHARED_SUFFIX) sample_get_video_frame$(STATIC_SUFFIX) \
-     sample_get_video_frames_by_time$(SHARED_SUFFIX) sample_get_video_frames_by_time$(STATIC_SUFFIX) \
-     sample_video_source$(SHARED_SUFFIX) \
-	 sample_persistence$(SHARED_SUFFIX)
+EXES=sample_video_source$(SHARED_SUFFIX) \
+	sample_persistence$(SHARED_SUFFIX)
 EXES=
 
 
@@ -52,54 +47,6 @@ libtara.a :
 	cp $(LIBDIR)/libtaraapi.a $(LIBDIR)/$@
 	$(AR) -r $(LIBDIR)/$@ $(LIBTARAVIDEOOBJS)
 
-sample_get_jpeg_by_time$(SHARED_SUFFIX): sample_get_jpeg_by_time.c
-	$(CC) -o $@ $(CFLAGS) sample_get_jpeg_by_time.c -L$(LIBDIR) -ltara
-	$(STRIP) $@
-
-sample_get_jpeg_by_time$(STATIC_SUFFIX): sample_get_jpeg_by_time.c
-	$(CC) -o $@ $(CFLAGS) sample_get_jpeg_by_time.c $(LIBDIR)/libtara.a
-	$(STRIP) $@
-
-sample_get_jpeg_by_cmd$(SHARED_SUFFIX): sample_get_jpeg_by_cmd.c
-	$(CC) -o $@ $(CFLAGS) sample_get_jpeg_by_cmd.c -L$(LIBDIR) -ltara
-	$(STRIP) $@
-
-sample_get_jpeg_by_cmd$(STATIC_SUFFIX): sample_get_jpeg_by_cmd.c
-	$(CC) -o $@ $(CFLAGS) sample_get_jpeg_by_cmd.c $(LIBDIR)/libtara.a
-	$(STRIP) $@
-
-sample_get_frame_by_cmd$(SHARED_SUFFIX): sample_get_frame_by_cmd.c
-	$(CC) -o $@ $(CFLAGS) sample_get_frame_by_cmd.c -L$(LIBDIR) -ltara
-	$(STRIP) $@
-
-sample_get_frame_by_cmd$(STATIC_SUFFIX): sample_get_frame_by_cmd.c
-	$(CC) -o $@ $(CFLAGS) sample_get_frame_by_cmd.c $(LIBDIR)/libtara.a
-	$(STRIP) $@
-
-sample_get_frame_by_time$(SHARED_SUFFIX): sample_get_frame_by_time.c
-	$(CC) -o $@ $(CFLAGS) sample_get_frame_by_time.c -L$(LIBDIR) -ltara
-	$(STRIP) $@
-
-sample_get_frame_by_time$(STATIC_SUFFIX): sample_get_frame_by_time.c
-	$(CC) -o $@ $(CFLAGS) sample_get_frame_by_time.c $(LIBDIR)/libtara.a
-	$(STRIP) $@
-
-sample_get_video_frame$(SHARED_SUFFIX): sample_get_video_frame.c
-	$(CC) -o $@ $(CFLAGS) sample_get_video_frame.c -L$(LIBDIR) -ltara
-	$(STRIP) $@
-
-sample_get_video_frame$(STATIC_SUFFIX): sample_get_video_frame.c
-	$(CC) -o $@ $(CFLAGS) sample_get_video_frame.c $(LIBDIR)/libtara.a
-	$(STRIP) $@
-
-sample_get_video_frames_by_time$(SHARED_SUFFIX): sample_get_video_frames_by_time.c
-	$(CC) -o $@ $(CFLAGS) sample_get_video_frames_by_time.c -L$(LIBDIR) -ltara
-	$(STRIP) $@
-
-sample_get_video_frames_by_time$(STATIC_SUFFIX): sample_get_video_frames_by_time.c
-	$(CC) -o $@ $(CFLAGS) sample_get_video_frames_by_time.c $(LIBDIR)/libtara.a
-	$(STRIP) $@
-
 sample_video_source$(SHARED_SUFFIX): sample_video_source.c
 	$(CC) -o $@ $(CFLAGS) sample_video_source.c -L$(LIBDIR) -ltara
 	$(STRIP) $@
@@ -111,6 +58,10 @@ sample_persistence$(SHARED_SUFFIX): sample_persistence.c
 tarasdk :
 	make -f tarasdk.mk
 
+taraapi :
+	make -f taraapi.mk
+
 clean :
 	rm -rf *.o *.lo *.so $(EXES) $(LIBDIR)/$(SHAREDLIBS) $(LIBDIR)/$(STATICLIBS)
 	make clean -f tarasdk.mk
+	make clean -f taraapi.mk
