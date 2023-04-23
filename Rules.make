@@ -36,21 +36,25 @@ ifeq ($(CHIP), 3521dv100)
 	TOOLCHAINI_VERSION:= linaro
 	KERNEL_CFG				:= hi3521d_full_defconfig
 	KERNELDIR 				:= $(BASE_INSTALL_DIR)/osdrv/opensource/kernel/linux-3.18.y
-  TOOLCHAIN_INSTALL_DIR=/opt/gcc-linaro/gcc-linaro-5.5.0-2017.10
-  CROSS_GCC=$(TOOLCHAIN_INSTALL_DIR)/bin/arm-linux-gnueabi-gcc
+  TOOLCHAIN_INSTALL_DIR=/opt/arm-ca9-linux-gnueabihf-8.4
+  CROSS_GCC=$(TOOLCHAIN_INSTALL_DIR)/bin/arm-ca9-linux-gnueabihf-
   ifneq ($(wildcard $(CROSS_GCC)),)
     # assign CROSS to full path of GCC executable, but replace "-gcc" by "-"
     export CROSS=$(CROSS_GCC:-gcc=-)
     export CROSS_COMPILE=$(CROSS_GCC:-gcc=-)
   else
     # default environment
-    CROSS=/opt/gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabi/bin/arm-linux-gnueabi-
-#		CROSS=arm-linux-gnueabi-
+    #CROSS=/opt/gcc-linaro-5.5.0-2017.10-x86_64_arm-linux-gnueabi/bin/arm-linux-gnueabi-
+	CROSS=arm-ca9-linux-gnueabihf-
   endif
 	export LIBC=glibc
 #	export CROSS=arm-linux-gnueabi-
 #	export CROSS_COMPILE=arm-linux-gnueabi-
 endif
+
+export CROSS=arm-ca9-linux-gnueabihf-
+export CROSS_GCC=arm-ca9-linux-gnueabihf-gcc
+export CROSS_COMPILE=arm-ca9-linux-gnueabihf-
 
 # Defining the install base directory for IPNC RDK
 IPNC_INSTALL_DIR   	:= $(shell pwd)

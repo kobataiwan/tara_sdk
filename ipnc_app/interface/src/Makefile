@@ -2,7 +2,8 @@
 INCLUDES += -I./ -I$(PUBLIC_INCLUDE_DIR) -I$(MPP_BASE_DIR)/include -I$(MPP_BASE_DIR)/../av_server -I$(IPNC_DIR)/../tara_api/include
 
 #C_FLAGS += -Wall -fPIC -O3 -lpthread -D$(SENSOR) -D$(BUILD_CFG) -DONVIF_H265
-C_FLAGS += -Wall -O3 -lpthread -D$(SENSOR) -D$(BUILD_CFG) -DONVIF_H265
+#C_FLAGS += -Wall -O3 -lpthread -D$(SENSOR) -D$(BUILD_CFG) -DONVIF_H265
+C_FLAGS += -Wall -O3 -lpthread -mfloat-abi=hard
 AR_FLAGS += -r
 
 CC = $(CROSS_COMPILE)gcc $(INCLUDES) $(C_FLAGS) -c

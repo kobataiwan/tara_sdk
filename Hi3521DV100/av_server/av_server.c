@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 #include "soc_video.h"
+#include "soc_video_api.h"
 #include "soc_osd.h"
 #include "nvp6158_main_thread.h"
 
@@ -67,6 +68,7 @@ MotionConfig *pshm_md = NULL;
 int utcThreadrun = 0, encThreadrun=0, mdThreadrun;
 pthread_t utcThread = NULL, encThread = NULL, mdThread = NULL;
 
+struct soc_video_priv *soc_priv;	// currently for NT9856x
 
 #ifdef _OSD_USED
 mask_cfg_data mask;
@@ -94,8 +96,8 @@ void AVSERVER_VENC_HandleSig(int signo)
 	
 	if (SIGINT == signo || SIGTERM == signo)
 	{
-		for (i = 0; i < MAX_VS_NUM; i++)
-			motion_soc_vdaStop(i);
+//		for (i = 0; i < MAX_VS_NUM; i++)
+//			motion_soc_vdaStop(i);
 		
 		DBG("%s exit \n", __func__);
 		gAvServerRun = 0;
@@ -1112,7 +1114,7 @@ int loadMotionConfigFile(void)
 	char* pcTempStr = NULL;
 	int i, s32Temp;
 
-	load_motion_vdamdConfigFile();
+//	load_motion_vdamdConfigFile();
 
 	for (i = 0; i < MAX_CAM_CHN; i++) {
 		motion[i].needsupdate = 0;
@@ -1765,6 +1767,7 @@ static void *encPollingThread(void *arg)
 	MjpegEncoder_t mj1[num_channel];
 	int chkv1 = 0, chkv2 = 0, chkmj1 = 0;
 	int updv1 = 0, updv2 = 0, updmj1 = 0;
+	int rst = 0;
 	
 	pthread_detach(pthread_self());
 	while(encThreadrun) {
@@ -1812,26 +1815,56 @@ static void *encPollingThread(void *arg)
 		
 		if (chkv1 == num_channel) {
 			saveAllVideoConfig(VIDEO_MAIN_STREAM, &video1[0].venc);
-			video_platform_setAllVideoEncoder(VIDEO_MAIN_STREAM, &video1[0].venc);
+//			video_platform_setAllVideoEncoder(VIDEO_MAIN_STREAM, &video1[0].venc);
+			for (i = 0; i < MAX_CAM_CHN; i++) {
+				if (soc_priv && soc_priv->vops->soc_video_set_encoder)
+					rst |= soc_priv->vops->soc_video_set_encoder(soc_priv->video_priv, i, VIDEO_MAIN_STREAM, &video1[0].venc);
+			}
+			if (rst && soc_priv && soc_priv->vops->soc_video_restart)
+				soc_priv->vops->soc_video_restart(soc_priv->video_priv);
 		} else if (chkv1 > 0) {
 			saveVideoConfig(updv1, VIDEO_MAIN_STREAM, &video1[updv1].venc);
-			video_platform_setVideoEncoder(updv1, VIDEO_MAIN_STREAM, &video1[updv1].venc);
+			//video_platform_setVideoEncoder(updv1, VIDEO_MAIN_STREAM, &video1[updv1].venc);
+			if (soc_priv && soc_priv->vops->soc_video_set_encoder)
+				rst = soc_priv->vops->soc_video_set_encoder(soc_priv->video_priv, updv1, VIDEO_MAIN_STREAM, &video1[updv1].venc);
+			if (rst && soc_priv && soc_priv->vops->soc_video_restart)
+				soc_priv->vops->soc_video_restart(soc_priv->video_priv);
 		}
 	
 		if (chkv2 == num_channel) {
 			saveAllVideoConfig(VIDEO_SUB_STREAM, &video2[0].venc);
-			video_platform_setAllVideoEncoder(VIDEO_SUB_STREAM, &video2[0].venc);
+//			video_platform_setAllVideoEncoder(VIDEO_SUB_STREAM, &video2[0].venc);
+			for (i = 0; i < MAX_CAM_CHN; i++) {
+				if (soc_priv && soc_priv->vops->soc_video_set_encoder)
+					rst |= soc_priv->vops->soc_video_set_encoder(soc_priv->video_priv, i, VIDEO_SUB_STREAM, &video2[0].venc);
+			}
+			if (rst && soc_priv && soc_priv->vops->soc_video_restart)
+				soc_priv->vops->soc_video_restart(soc_priv->video_priv);
 		} else if (chkv2 > 0) {
 			saveVideoConfig(updv2, VIDEO_SUB_STREAM, &video2[updv2].venc);
-			video_platform_setVideoEncoder(updv2, VIDEO_SUB_STREAM, &video2[updv2].venc);
+//			video_platform_setVideoEncoder(updv2, VIDEO_SUB_STREAM, &video2[updv2].venc);
+			if (soc_priv && soc_priv->vops->soc_video_set_encoder)
+				rst = soc_priv->vops->soc_video_set_encoder(soc_priv->video_priv, updv2, VIDEO_SUB_STREAM, &video1[updv2].venc);
+			if (rst && soc_priv && soc_priv->vops->soc_video_restart)
+				soc_priv->vops->soc_video_restart(soc_priv->video_priv);
 		}
 		
 		if (chkmj1 == num_channel) {
 			saveAllMjpegConfig(VIDEO_MJPEG_STREAM, &mjpeg1[0].mjenc);
-			video_platform_setAllMjpegEncoder(VIDEO_MJPEG_STREAM, &mjpeg1[0].mjenc);
+//			video_platform_setAllMjpegEncoder(VIDEO_MJPEG_STREAM, &mjpeg1[0].mjenc);
+			for (i = 0; i < MAX_CAM_CHN; i++) {
+				if (soc_priv && soc_priv->vops->soc_video_set_mjpeg)
+					rst |= soc_priv->vops->soc_video_set_mjpeg(soc_priv->video_priv, i, VIDEO_MJPEG_STREAM, &mjpeg1[0].mjenc);
+			}
+			if (rst && soc_priv && soc_priv->vops->soc_video_restart)
+				soc_priv->vops->soc_video_restart(soc_priv->video_priv);
 		} else if (chkmj1 > 0) {
 			saveMjpegConfig(updmj1, VIDEO_MJPEG_STREAM, &mjpeg1[updmj1].mjenc);
-			video_platform_setMjpegEncoder(updmj1, VIDEO_MJPEG_STREAM, &mjpeg1[updmj1].mjenc);
+//			video_platform_setMjpegEncoder(updmj1, VIDEO_MJPEG_STREAM, &mjpeg1[updmj1].mjenc);
+			if (soc_priv && soc_priv->vops->soc_video_set_mjpeg)
+				rst = soc_priv->vops->soc_video_set_mjpeg(soc_priv->video_priv, updmj1, VIDEO_MJPEG_STREAM, &mjpeg1[updmj1].mjenc);
+			if (rst && soc_priv && soc_priv->vops->soc_video_restart)
+				soc_priv->vops->soc_video_restart(soc_priv->video_priv);
 		}
 		usleep(200000);
 	}
@@ -1859,18 +1892,20 @@ static void *mdPollingThread(void *arg)
 				if (motion[i].config.motion != mdtmp[i].config.motion) {
 					motion[i].config.motion = mdtmp[i].config.motion;
 					motion[i].config.sensitivity = mdtmp[i].config.sensitivity;
+#if 0
 					if (motion[i].config.motion == MOTION_ON)
 						motion_soc_vdaStart(i, motion[i].config.sensitivity);
 					else motion_soc_vdaStop(i);
+#endif	// TODO: soc motion ops
 				}
 				if (motion[i].config.sensitivity != mdtmp[i].config.sensitivity) {
 					motion[i].config.sensitivity = mdtmp[i].config.sensitivity;
-					motion_setSensitivity(i, motion[i].config.sensitivity);
+//					motion_setSensitivity(i, motion[i].config.sensitivity);
 				}
 				printf("!!! update VS%d: MotionDetection %s, %d, %d, %d, update_cnt=%d, update_num=%d\n", i+1, motion[i].config.motion == MOTION_ON ? "On" : "Off",
 							motion[i].config.sensitivity, motion[i].config.mdosd, motion[i].config.mdosd_on, update_cnt, update_num);
 			}
-			status = motion[i].config.motion == MOTION_ON ? motion_getStatus(i) : 0;
+//			status = motion[i].config.motion == MOTION_ON ? motion_getStatus(i) : 0;
 			EnterCritical(pshm_md->semid, 0);
 			pshm_md->md[i].config.mdstate = status;
 			LeaveCritical(pshm_md->semid, 0);
@@ -1895,13 +1930,16 @@ int main(int argc, char *argv[])
 	int status[MAX_VS_NUM] = {1, 1, 1, 1, 1, 1, 1, 1};
 	int last_status[MAX_VS_NUM] = {1, 1, 1, 1, 1, 1, 1, 1};
 	struct timespec ts, ts_last;
+	soc_priv = get_nt9856x_inst(NULL, NULL, NULL);
 	
 	signal(SIGINT, AVSERVER_VENC_HandleSig);
 	signal(SIGTERM, AVSERVER_VENC_HandleSig);
 	
 	Tara_init();
 
-	soc_initCodecPTS();
+//	soc_initCodecPTS();
+	if (soc_priv && soc_priv->vops->soc_init_codec_pts)
+		soc_priv->vops->soc_init_codec_pts();
 	Tara_feature_getConfig(&feature);
 	printf("sys:offset=0x%x\n", feature.sys.ubootenv_offset);
 	printf("sys:UnencryptedUpdate=%s\n", 
@@ -1971,21 +2009,34 @@ int main(int argc, char *argv[])
 		LeaveCritical(pshm_md->semid, 0);
 	}
 	
-	video_platform_init();
+//	video_platform_init();
+	if (soc_priv) {
+		if (soc_priv->vops->soc_video_load_config)
+			soc_priv->vops->soc_video_load_config(soc_priv->video_priv);
+		if (soc_priv->vops->soc_video_init_and_bind)
+			soc_priv->vops->soc_video_init_and_bind(soc_priv->video_priv);
+	}
 	
 #ifdef _OSD_USED
 	osd_start();
 #endif
-	video_platform_videoEncoderStart(VIDEO_MAIN_STREAM, video1);
-	video_platform_videoEncoderStart(VIDEO_SUB_STREAM, video2);
-	video_platform_mjpegEncoderStart(VIDEO_MJPEG_STREAM, mjpeg1);
-	
-	video_platform_getRawFrameStart(rawframe);
-	video_platform_getStreamStart(num_channel, MAX_STREAM_NUM);
-	
+	if (soc_priv && soc_priv->vops->soc_video_encode_start) {
+		soc_priv->vops->soc_video_encode_start(soc_priv->video_priv, VIDEO_MAIN_STREAM, video1);
+		soc_priv->vops->soc_video_encode_start(soc_priv->video_priv, VIDEO_SUB_STREAM, video2);
+	}
+	if (soc_priv && soc_priv->vops->soc_mjpeg_encode_start)
+		soc_priv->vops->soc_mjpeg_encode_start(soc_priv->video_priv, VIDEO_MJPEG_STREAM, mjpeg1);
+
+	if (soc_priv && soc_priv->vops->soc_video_get_rawframe_start)
+		soc_priv->vops->soc_video_get_rawframe_start(soc_priv->video_priv, rawframe);
+	if (soc_priv && soc_priv->vops->soc_video_get_stream_start)
+		soc_priv->vops->soc_video_get_stream_start(soc_priv->video_priv, num_channel, MAX_STREAM_NUM);
+
+#if 0
 	for (i = 0; i < MAX_VS_NUM; i++) {
 		if (motion[i].config.motion == MOTION_ON) motion_soc_vdaStart(i, motion[i].config.sensitivity);
 	}
+#endif	// TODO: soc motion ops
 
 	utcThreadrun = 1;
 	pthread_create(&utcThread, 0, utcThreadCtrl, NULL);
@@ -2005,19 +2056,25 @@ int main(int argc, char *argv[])
 	
 //sleep(1);
 	for (i = 0; i < MAX_VS_NUM; i++) {
-		if (status[i] == 0) video_platform_setVideoSourceBlueScreen(i, 1);
-		else video_platform_setVideoSourceBlueScreen(i, 0);
+		if (soc_priv && soc_priv->vops->soc_video_set_blank_source) {
+			if (status[i] == 0)
+				soc_priv->vops->soc_video_set_blank_source(soc_priv->video_priv, i, 1);
+			else
+				soc_priv->vops->soc_video_set_blank_source(soc_priv->video_priv, i, 0);
+		}
 	}
 
 	clock_gettime(CLOCK_REALTIME, &ts);
 	ts_last = ts;
-	soc_syncCodecPTS();
+	if (soc_priv && soc_priv->vops->soc_sync_codec_pts)
+		soc_priv->vops->soc_sync_codec_pts(soc_priv->video_priv);
 	while(gAvServerRun)
 	{
 		clock_gettime(CLOCK_REALTIME, &ts);
 		
 		if ((ts.tv_sec - ts_last.tv_sec) >= 60 || ts.tv_sec < ts_last.tv_sec) {
-			soc_syncCodecPTS();
+			if (soc_priv && soc_priv->vops->soc_sync_codec_pts)
+				soc_priv->vops->soc_sync_codec_pts(soc_priv->video_priv);
 			ts_last = ts;
 		}
 
@@ -2025,9 +2082,13 @@ int main(int argc, char *argv[])
 		for (i = 0; i < MAX_VS_NUM; i++) {
 			if (status[i] == last_status[i]) continue;
 			if (status[i] == 0) {
-				video_platform_setVideoSourceBlueScreen(i, 1);
+				if (soc_priv && soc_priv->vops->soc_video_set_blank_source)
+					soc_priv->vops->soc_video_set_blank_source(soc_priv->video_priv, i, 1);
 				printf("Channel %d Video Loss!\n", i+1);
-			} else video_platform_setVideoSourceBlueScreen(i, 0);
+			} else {
+				if (soc_priv && soc_priv->vops->soc_video_set_blank_source)
+					soc_priv->vops->soc_video_set_blank_source(soc_priv->video_priv, i, 0);
+			}
 			last_status[i] = status[i];
 
 			if (status[i] >= NC6158_FORMATDEF_MAX) 
@@ -2066,12 +2127,13 @@ int main(int argc, char *argv[])
 #endif
 //	imaging_scene_stop();
 	for (i = 0; i < MAX_VS_NUM; i++) {
-		if (motion[i].config.motion == MOTION_ON) motion_soc_vdaStop(i);
+		//if (motion[i].config.motion == MOTION_ON) motion_soc_vdaStop(i);
 		EnterCritical(pshm_vs->semid, 0);
 		memset(&pshm_vs->vsrc[i], 0, sizeof(pshm_vs->vsrc[i]));
 		LeaveCritical(pshm_vs->semid, 0);
 	}
-	video_platform_exit();
+	if (soc_priv && soc_priv->vops->soc_video_stop)
+		soc_priv->vops->soc_video_stop(soc_priv->video_priv);
 _EXIT:
 	if (pshm_v1) Tara_video_encoder_detach(pshm_v1);
 	if (pshm_v2) Tara_video_encoder_detach(pshm_v2);

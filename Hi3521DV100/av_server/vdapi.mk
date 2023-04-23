@@ -14,7 +14,7 @@ INCS+=-I$(MPP_PATH)/ahd_app_sample/video_decoder
 INCS+=-I$(MPP_PATH)/ahd_app_sample/video_decoder/include
 INCS+=-I$(MPP_PATH)/ahd_app_sample/video_decoder/api
 
-CFLAGS := -Wall -fPIC -Wno-unused-but-set-variable -lpthread -lm -ldl
+CFLAGS := -Wall -fPIC -Wno-unused-but-set-variable -lpthread -lm -ldl -mfloat-abi=hard
 CFLAGS += -DTARAAPI_VER_V20
 
 all: $(OBJS) $(APIBINS)

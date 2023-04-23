@@ -30,6 +30,7 @@ CFLAGS += $(INC_FLAGS)
 CFLAGS += -D$(SENSOR) -D$(BOARD) -D_nOSD_USED -D_nAUDIO_ON_ -D_nIVS_ON_
 ifeq ($(BUILD_CFG), dev)
 CFLAGS += -D_DBG_MSG_
+CFLAGS += -mfloat-abi=hard
 endif
 
 #LDFLAGS +=-L$(SDK_PATH)/../opensource/SDL1/$(TOOLCHAINI_VERSION)_build/lib -lSDL
@@ -39,10 +40,10 @@ endif
 LDFLAGS +=-L$(TARAAPI_DIR)/lib -ltara -L$(SDK_PATH)/../opensource/iniparser/$(TOOLCHAINI_VERSION)_lib -liniparser
 
 LIBS = $(SDK_PATH)/../ipnc_app/interface/lib/msg_util.a \
-	$(SDK_PATH)/../ipnc_app/interface/lib/sem_util.a $(SDK_PATH)/soc_wraper/lib/libhiapi.a ./lib/libvdapi.a
+       $(SDK_PATH)/../ipnc_app/interface/lib/sem_util.a $(SDK_PATH)/soc_wraper/lib/libhiapi.a ./lib/libvdapi.a $(SDK_PATH)/soc_wraper/include/hdal/lib/libhdal.a
 
-MPI_LIBS := $(REL_LIB)/libmpi.a
-MPI_LIBS += $(REL_LIB)/libhdmi.a $(REL_LIB)/libjpeg.a
+#MPI_LIBS := $(REL_LIB)/libmpi.a
+#MPI_LIBS += $(REL_LIB)/libhdmi.a $(REL_LIB)/libjpeg.a
 
 all: $(HILIBS) $(EXES)
 	$(CROSS)strip av_server
