@@ -28,9 +28,12 @@ endif
 export KERNEL_ROOT=$(LINUX_ROOT)
 # Define cross compiler
 ifeq ($(LIBC),uclibc)
-	ifeq ($(HIARCH), $(filter $(HIARCH), hi3531dv100 hi3521dv100 hi3536cv100))
+	ifeq ($(HIARCH), $(filter $(HIARCH), hi3531dv100 hi3536cv100))
 		export CROSS_COMPILE?=arm-hisiv500-linux-
 		export CROSS?=arm-hisiv500-linux-
+	else ifeq ($(HIARCH), $(filter $(HIARCH), hi3521dv100))
+		export CROSS_COMPILE?=arm-ca9-linux-gnueabihf-
+		export CROSS?=arm-ca9-linux-gnueabihf-
 	else 
 		export CROSS_COMPILE?=arm-hisiv510-linux-
 		export CROSS?=arm-hisiv510-linux-

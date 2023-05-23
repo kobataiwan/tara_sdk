@@ -1,7 +1,7 @@
 #include ./config.mak
 #include ../mpp/Makefile.param
 
-export MPP_PATH=/home/u/pacidal/0527_tara/tara_sdk/Hi3521DV100/mpp
+export MPP_PATH=$(PWD)/../mpp
 
 HIAPI_DIR=$(MPP_PATH)/sample/common
 LIBS_DIR=lib

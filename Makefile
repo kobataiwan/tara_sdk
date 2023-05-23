@@ -1,5 +1,5 @@
 include Rules.make
-SDKREL_PATH=/home/mia/Projects/github/tarasdk_Hi3521DV100
+SDKREL_PATH=$(PWD)
 
 SUBDIRS = tara_api $(CHIP_NAME)/av_server
 DEBUGSUBDIRS = $(addsuffix .debug, $(SUBDIRS))

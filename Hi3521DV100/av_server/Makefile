@@ -1,4 +1,5 @@
 #include config.mak
+SHELL := /bin/bash
 ifeq ($(PARAM_FILE), )
      PARAM_FILE:=../mpp/Makefile.param
      include $(PARAM_FILE)
