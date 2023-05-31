@@ -10,9 +10,20 @@
 
 #include "av_env_type.h"
 
-#define MAX_VENC_CHN				24
-#define MAX_CAM_CHN					8
-#define MAX_STREAM_NUM				3
+
+#if 0
+#define MAX_VENC_CHN		24
+#define MAX_CAM_CHN		8
+#define MAX_STREAM_NUM		3
+#else
+//
+// NT9856x plaftform
+//
+#define MAX_VENC_CHN		1
+#define MAX_CAM_CHN		1
+#define MAX_STREAM_NUM		2
+#endif
+
 #define SUCCESS  0
 #define FAILURE  (-1)
 

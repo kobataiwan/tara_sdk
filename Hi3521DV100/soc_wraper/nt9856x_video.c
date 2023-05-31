@@ -30,6 +30,7 @@ extern "C" {
 #include "soc_video_priv.h"
 #include "soc_video_api.h"
 #include "hisi_comm.h"
+#include "mpi_venc.h"
 
 #include "hdal.h"
 #include "hd_debug.h"
@@ -45,11 +46,10 @@ extern "C" {
         (type *)( (char *)__mptr - offsetof(type,member) );})
 
 typedef struct _VIDEO_REC_PRIV {
-
-	int index;
-	void *drv_priv;
-	UINT32 enc_type;
-	UINT32 enc_bitrate;
+        int index;
+        void *drv_priv;
+        UINT32 enc_type;
+        UINT32 enc_bitrate;
         // (1)
         HD_VIDEOCAP_SYSCAPS cap_syscaps;
         HD_PATH_ID cap_ctrl;
@@ -83,7 +83,7 @@ struct nt9856x_priv {
         void *rq[MAX_CAM_CHN];
 
         VIDEO_NORM_E gs_enNorm;         // = VIDEO_ENCODING_MODE_NTSC;
-//        VpssGrpInfo vs_hw[1];		// how to translate?
+        //VpssGrpInfo vs_hw[1];		// how to translate?
         TaraVideoSource vs[MAX_CAM_CHN];
         ThreadInfo_s raw, viframe;
         int raw_stream;                 // = 0;
@@ -94,20 +94,23 @@ struct nt9856x_priv {
         int getStrCnt;                  // = 0;
         int dbgflag;                    // =0;
 
-	// depends on hd_type.h
-	UINT32 shdr_mode;		// = 0;
-	UINT32 thrdnr;			// = 1;
-	UINT32 data_mode;		// = 0; option for vcap out to vprc
-	UINT32 data2_mode;		// = 0; option for vprc out to venc
-	UINT32 cap_out_fmt;		// = 0;
-	UINT32 prc_out_fmt;		// = 0;
+        // depends on hd_type.h
+        UINT32 shdr_mode;		// = 0;
+        UINT32 thrdnr;			// = 1;
+        UINT32 data_mode;		// = 0; option for vcap out to vprc
+        UINT32 data2_mode;		// = 0; option for vprc out to venc
+        UINT32 cap_out_fmt;		// = 0;
+        UINT32 prc_out_fmt;		// = 0;
 
         pthread_t gs_VencPid, gs_MjpgPid, gs_Video2Pid; //gs_AencPid;
         AVSERVER_VENC_GETSTREAM_PARA_S gs_stParam, gs_mjParam, gs_v2Param;
         GetStreamThreadCtrl getStrThrCtrl[MAX_CAM_CHN];
         TaraVideoEncoder video1[MAX_CAM_CHN], video2[MAX_CAM_CHN];
-//        TaraMjpegEncoder mjpeg1[MAX_CAM_CHN];		// ignore mjpeg first
-	VIDEO_REC_PRIV stream[MAX_STREAM_NUM]; //0: main stream
+        //TaraMjpegEncoder mjpeg1[MAX_CAM_CHN];		// ignore mjpeg first
+        // 0: main stream
+        // 1: sub stream
+        VIDEO_REC_PRIV stream[MAX_STREAM_NUM];
+        FILE* outFd[MAX_STREAM_NUM];
 };
 
 /* Exported Functions */
@@ -257,6 +260,16 @@ static HD_RESULT get_cap_caps(HD_PATH_ID video_cap_ctrl, HD_VIDEOCAP_SYSCAPS *p_
         return ret;
 }
 
+static HD_RESULT get_cap_sysinfo(HD_PATH_ID video_cap_ctrl)
+{
+        HD_RESULT ret = HD_OK;
+        HD_VIDEOCAP_SYSINFO sys_info = {0};
+
+        hd_videocap_get(video_cap_ctrl, HD_VIDEOCAP_PARAM_SYSINFO, &sys_info);
+        printf("sys_info.devid =0x%X, cur_fps[0]=%d/%d, vd_count=%llu\r\n", sys_info.dev_id, GET_HI_UINT16(sys_info.cur_fps[0]), GET_LO_UINT16(sys_info.cur_fps[0]), sys_info.vd_count);
+        return ret;
+}
+
 static HD_RESULT set_cap_param(struct nt9856x_priv *priv, HD_PATH_ID video_cap_path, HD_DIM *p_dim, UINT32 path)
 {
         HD_RESULT ret = HD_OK;
@@ -281,7 +294,7 @@ static HD_RESULT set_cap_param(struct nt9856x_priv *priv, HD_PATH_ID video_cap_p
 	if (ret != HD_OK) {
 		return ret;
 	}
-	
+
 	video_crop_param.mode = HD_CROP_OFF;	// no crop, full frame
 	ret = hd_videocap_set(video_cap_path, HD_VIDEOCAP_PARAM_IN_CROP, &video_crop_param);
 	if (ret != HD_OK) {
@@ -308,7 +321,7 @@ static HD_RESULT set_cap_param(struct nt9856x_priv *priv, HD_PATH_ID video_cap_p
                 video_path_param.out_func = HD_VIDEOCAP_OUTFUNC_DIRECT;
                 ret = hd_videocap_set(video_cap_path, HD_VIDEOCAP_PARAM_FUNC_CONFIG, &video_path_param);
         }
-	
+
 	return ret;
 }
 
@@ -679,23 +692,29 @@ static HD_RESULT open_module(VIDEO_REC_PRIV *p_stream, HD_DIM* p_proc_max_dim)
 	if (p_stream->index == 0)
         	ret = set_proc_cfg(p_stream->drv_priv, &p_stream->proc_ctrl, p_proc_max_dim, HD_VIDEOPROC_0_CTRL);
 	else
-        	ret = set_proc_cfg(p_stream->drv_priv, &p_stream->proc_ctrl, p_proc_max_dim, HD_VIDEOPROC_1_CTRL);
+                ret = set_proc_cfg(p_stream->drv_priv, &p_stream->proc_ctrl, p_proc_max_dim, HD_VIDEOPROC_1_CTRL);
+
         if (ret != HD_OK) {
                 printf("set proc-cfg fail=%d\n", ret);
                 return HD_ERR_NG;
         }
-
+#if 0
+        // only manage device 0 for capability?
 	if (p_stream->index == 0) {
         	if ((ret = hd_videocap_open(HD_VIDEOCAP_0_IN_0, HD_VIDEOCAP_0_OUT_0, &p_stream->cap_path)) != HD_OK)
                 	return ret;
 	}
-
+#endif
 	if (p_stream->index == 0) {
+                if ((ret = hd_videocap_open(HD_VIDEOCAP_0_IN_0, HD_VIDEOCAP_0_OUT_0, &p_stream->cap_path)) != HD_OK)
+                        return ret;
         	if ((ret = hd_videoproc_open(HD_VIDEOPROC_0_IN_0, HD_VIDEOPROC_0_OUT_0, &p_stream->proc_path)) != HD_OK)
                 	return ret;
         	if ((ret = hd_videoenc_open(HD_VIDEOENC_0_IN_0, HD_VIDEOENC_0_OUT_0, &p_stream->enc_path)) != HD_OK)
                 	return ret;
 	} else {
+                if ((ret = hd_videocap_open(HD_VIDEOCAP_0_IN_0, HD_VIDEOCAP_0_OUT_0, &p_stream->cap_path)) != HD_OK)
+                        return ret;
         	if ((ret = hd_videoproc_open(HD_VIDEOPROC_0_IN_0, HD_VIDEOPROC_0_OUT_1, &p_stream->proc_path)) != HD_OK)
                 	return ret;
         	if ((ret = hd_videoenc_open(HD_VIDEOENC_0_IN_1, HD_VIDEOENC_0_OUT_1, &p_stream->enc_path)) != HD_OK)
@@ -736,7 +755,7 @@ static HD_RESULT exit_module(void)
 /* Exported Callback Functions */
 int nt9856x_video_init(struct nt9856x_priv *priv)
 {
-	HD_RESULT ret;
+        HD_RESULT ret;
 	HD_DIM main_dim;
         HD_DIM sub_dim;
 	UINT32 enc_type;
@@ -752,11 +771,11 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
 	priv->prc_out_fmt = 0;
 	priv->cap_out_fmt = 0;	// HD_VIDEO_PXLFMT_RAW12
 	priv->data_mode = 0;	// direct mode
-	priv->data2_mode = 0;	// 1: low latency 
+	priv->data2_mode = 0;	// 1: low latency
 	//priv->drv_priv = (void *)priv;
 
         /******************************************
-                step 1: hdal/memory/module init.
+    	step 1: hdal/memory/module init.
         ******************************************/
 	ret = hd_common_init(0);
 	if (ret != HD_OK) {
@@ -767,7 +786,7 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
 	// init memory
         ret = mem_init(priv);
         if (ret != HD_OK) {
-                printf("mem fail=%d\n", ret);
+    	   printf("mem fail=%d\n", ret);
                 goto exit;
         }
 
@@ -776,9 +795,10 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
         priv->stream[0].proc_max_dim.w = VDO_SIZE_W; //assign by hicomm_load_config
         priv->stream[0].proc_max_dim.h = VDO_SIZE_H; //assign by hicomm_load_config,
 	priv->stream[0].drv_priv = priv;
-        ret = open_module(&priv->stream[0], &priv->stream[0].proc_max_dim);
+
+	ret = open_module(&priv->stream[0], &priv->stream[0].proc_max_dim);
         if (ret != HD_OK) {
-                printf("open fail=%d\n", ret);
+    	   printf("open fail=%d\n", ret);
                 goto exit;
         }
 
@@ -787,9 +807,10 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
         priv->stream[1].proc_max_dim.w = VDO_SIZE_W; //assign by hicomm_load_config
         priv->stream[1].proc_max_dim.h = VDO_SIZE_H; //assign by hicomm_load_config,
 	priv->stream[1].drv_priv = priv;
+
         ret = open_module(&priv->stream[1], &priv->stream[1].proc_max_dim);
         if (ret != HD_OK) {
-                printf("open fail=%d\n", ret);
+	       printf("open fail=%d\n", ret);
                 goto exit;
         }
 
@@ -809,22 +830,20 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
                 goto exit;
         }
 
-	// assign parameter by program options
+		// assign parameter by program options
         main_dim.w = VDO_SIZE_W;
         main_dim.h = VDO_SIZE_H;
         sub_dim.w = VDO_SIZE_W;
         sub_dim.h = VDO_SIZE_H;
 
         // set videoproc parameter (main)
-	if (priv->prc_out_fmt == 1)
-        {
-		ret = set_proc_param(priv, priv->stream[0].proc_path, NULL, HD_VIDEO_PXLFMT_YUV420_NVX2, FALSE);
+	if (priv->prc_out_fmt == 1) {
+	       ret = set_proc_param(priv, priv->stream[0].proc_path, NULL, HD_VIDEO_PXLFMT_YUV420_NVX2, FALSE);
                 if (ret != HD_OK) {
-                        printf("set proc fail=%d\n", ret);
+            	   printf("set proc fail=%d\n", ret);
                         goto exit;
                 }
-        }
-        else{
+        } else {
 		ret = set_proc_param(priv, priv->stream[0].proc_path, NULL, HD_VIDEO_PXLFMT_YUV420, FALSE);
                 if (ret != HD_OK) {
                         printf("set proc fail=%d\n", ret);
@@ -835,8 +854,8 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
 	// set videoproc parameter (sub)
         ret = set_proc_param(priv, priv->stream[1].proc_path, NULL, HD_VIDEO_PXLFMT_YUV420, FALSE);
         if (ret != HD_OK) {
-                printf("set proc fail=%d\n", ret);
-                goto exit;
+        	printf("set proc fail=%d\n", ret);
+            goto exit;
         }
 
 	// bind capture and vpss
@@ -856,7 +875,6 @@ int nt9856x_video_init(struct nt9856x_priv *priv)
 		hd_videocap_start(priv->stream[0].cap_path);
 		hd_videoproc_start(priv->stream[0].proc_path);
 	}
-	hd_videoproc_start(priv->stream[1].proc_path);
 
 exit:
 	// close video_record modules (main)
@@ -994,7 +1012,10 @@ int nt9856x_video_set_encoder(struct nt9856x_priv *priv, int chan, TARA_VIDEO_ST
 		if (stream_type == VIDEO_MAIN_STREAM) {
 			priv->stream[0].enc_max_dim.w = pv->width;
 			priv->stream[0].enc_max_dim.h = pv->height;
-			ret = set_enc_cfg(priv, priv->stream[0].enc_path, &priv->stream[0].enc_max_dim, 1 * 1024 * 1024, 0);
+			ret = set_enc_cfg(
+                                        priv,
+                                        priv->stream[0].enc_path, &priv->stream[0].enc_max_dim,
+                                        1 * 1024 * 1024, 0);
 			if (ret != HD_OK) {
 				printf("set enc-cfg fail=%d\n", ret);
 				return ret;
@@ -1032,13 +1053,33 @@ int nt9856x_video_set_encoder(struct nt9856x_priv *priv, int chan, TARA_VIDEO_ST
 
 }
 
+FILE* nt9856x_getOutfd(VENC_CHN vChn)
+{
+	FILE* fdOut = NULL;
+	char commFolder[] = "/tmp/streamDump/";
+	char* fileName = NULL, *fullFilePath = NULL;
+	char vChnStr = vChn + '0';
+
+	fileName = strncat("dumpStream_", vChnStr, sizeof(vChnStr));
+        fileName = strncat(fileName, ".dat", sizeof(char) * 4);
+	fullFilePath = strncat(commFolder, fileName, sizeof(fileName));
+
+	if ((fdOut = fopen(fullFilePath, "wb")) == NULL) {
+		HD_VIDEOENC_ERR("open file (%s) fail...\r\n", fullFilePath);
+	} else {
+		printf("\r\nDump channel %d main stream to file (%s) ...", vChn, fullFilePath);
+	}
+
+	return fdOut;
+}
+
 /*****************************************************************************
 * funciton : get stream from each channels and save them
 ******************************************************************************/
 HI_VOID* getStreamProc(HI_VOID *p)
 {
         struct nt9856x_priv *priv;
-        HI_S32 i;
+        HI_S32 i = 0, j = 0, ret = HD_OK;
         AVSERVER_VENC_GETSTREAM_PARA_S* pstPara;
         HI_S32 maxfd = 0;
         struct timeval TimeoutVal;
@@ -1061,9 +1102,15 @@ HI_VOID* getStreamProc(HI_VOID *p)
         int qsize = 300;
         int framerate, gopsize;
         int onoff[MAX_CAM_CHN];
+        UINT32 vir_addr_main;
+        HD_VIDEOENC_BUFINFO phy_buf_main;
+        HD_VIDEOENC_BS  data_pull;
+        #define PHY2VIRT_MAIN(pa) (vir_addr_main + (pa - phy_buf_main.buf_info.phy_addr))
+
 
         pstPara = (AVSERVER_VENC_GETSTREAM_PARA_S*)p;
         stype = pstPara->strtype;
+
         if (stype == STREAM_TYPE_VIDEO1)
                 priv = container_of(pstPara, struct nt9856x_priv, gs_stParam);
         else if (stype == STREAM_TYPE_VIDEO2)
@@ -1073,16 +1120,21 @@ HI_VOID* getStreamProc(HI_VOID *p)
 
         for (i = 0; i < MAX_CAM_CHN; i++)
                 onoff[i] = (stype == STREAM_TYPE_VIDEO1) ? priv->video1[i].video : priv->video2[i].video;
+
         /******************************************
-        step 1:  check & prepare save-file & venc-fd
+        step 1:  check & prepare save-file
         ******************************************/
         memset(&VencFd, 0, sizeof(VencFd));
         mkdir(path, 0777);
 
+        HD_VIDEOENC_MSG(
+                "==== %s: %d %s\n", __func__,
+                stype, stype == STREAM_TYPE_VIDEO1 ? "Video1" : "Video2");
+
         for (i = 0; i < MAX_CAM_CHN; i++) {
                 VencChn = (i * MAX_STREAM_NUM) + stype;
-                VencFd[i] = 0;
-                pCloseFile[i] = NULL;
+                //VencFd[i] = 0;
+                //pCloseFile[i] = NULL;
                 priv->StreamCtrl[VencChn].channelNo = VencChn;
                 priv->StreamCtrl[VencChn].pFile = NULL;
                 priv->StreamCtrl[VencChn].serialNo = 0;
@@ -1091,47 +1143,93 @@ HI_VOID* getStreamProc(HI_VOID *p)
                 priv->StreamCtrl[VencChn].rb_wtidx = 0;
                 priv->StreamCtrl[VencChn].lastOffset = 0;
                 priv->StreamCtrl[VencChn].lastSize = 0;
+
                 if (stype == STREAM_TYPE_VIDEO1) {
-                        if (onoff[i] == ENCODER_OFF) continue;
+                        if (onoff[i] == ENCODER_OFF)
+                                continue;
                         enPayLoadType[i] = priv->video1[i].type == VIDEO_CODEC_HEVC ? PT_H265 : PT_H264;
                 } else {
-                        if (onoff[i] == ENCODER_OFF) continue;
+                        if (onoff[i] == ENCODER_OFF)
+                                continue;
                         enPayLoadType[i] = priv->video2[i].type == VIDEO_CODEC_HEVC ? PT_H265 : PT_H264;
                 }
-                snprintf(szFilePostfix[i], sizeof(szFilePostfix[i]), "%s", enPayLoadType[i] == PT_H265 ? ".h265" : ".h264");
-                snprintf(aszPathName[i], sizeof(aszPathName[i]), "%s/%d", STREAM_PATH, VencChn);
-                rmdir(aszPathName[i]);
-                mkdir(aszPathName[i], 0777);
-                /* Set Venc Fd. */
-		// check if venc is ready?
-		//while (p_stream0->flow_start == 0) sleep(1);
         }
 
-	DBG("start to get stream%d %d\n", stype, pstPara->bThreadStart);
-	/******************************************
-	step 2:  Start to get streams of each channel.
-	******************************************/
-	pthread_detach(pthread_self());
-	if (stype == STREAM_TYPE_VIDEO1)
-		priv->getstrflag = 1;
-	else
-		priv->getv2flag = 1;
 
-#if 0
-	while (HI_TRUE == pstPara->bThreadStart)
-	{
-		for (i = 0; i < MAX_CAM_CHN; i++) {
-			VencChn = (i * MAX_STREAM_NUM) + stype;
-		}
-while (p_stream0->flow_start == 0) sleep(1);
+        HD_VIDEOENC_MSG("start to get stream%d %d\n", stype, pstPara->bThreadStart);
+        /******************************************
+        step 2:  Start to get streams of each channel.
+        ******************************************/
+        pthread_detach(pthread_self());
+        if (stype == STREAM_TYPE_VIDEO1)
+                priv->getstrflag = 1;
+        else
+                priv->getv2flag = 1;
 
-        // query physical address of bs buffer ( this can ONLY query after hd_videoenc_start() is called !! )
-        hd_videoenc_get(p_stream0->enc_path, HD_VIDEOENC_PARAM_BUFINFO, &phy_buf_main);
-	}
-#endif
+        while (HI_TRUE == pstPara->bThreadStart) {
+                for (i = 0; i < MAX_STREAM_NUM; i++) {
+                        if (priv->stream[i].flow_start == 0) {
+                                continue;
+                        }
 
-                                                       
-	return;
+                        // query physical address of bs buffer ( this can ONLY query after hd_videoenc_start() is called !! )
+                        hd_videoenc_get(
+                                priv->stream[i].enc_path,
+                                HD_VIDEOENC_PARAM_BUFINFO,
+                                &phy_buf_main);
+
+                        // mmap for bs buffer (just mmap one time only, calculate offset to virtual address later)
+                        vir_addr_main = (UINT32) hd_common_mem_mmap(
+                                                        HD_COMMON_MEM_MEM_TYPE_CACHE,
+                                                        phy_buf_main.buf_info.phy_addr,
+                                                        phy_buf_main.buf_info.buf_size);
+
+                        priv->outFd[i] = nt9856x_getOutfd(i);
+                        if (priv->outFd[i] == NULL) {
+                                continue;
+                        }
+
+                        memset (&data_pull, 0x00, sizeof(HD_VIDEOENC_BS));
+
+                        while (priv->stream[i].enc_exit == 0) {
+                                //pull data
+                                ret = hd_videoenc_pull_out_buf(
+                                                priv->stream[i].enc_path,
+                                                &data_pull, -1); // -1 = blocking mode
+
+                                if (ret == HD_OK) {
+                                        for (j = 0; j < data_pull.pack_num; j ++) {
+                                                UINT8 *ptr = (UINT8 *)PHY2VIRT_MAIN(
+                                                                        data_pull.video_pack[j].phy_addr);
+                                                UINT32 len = data_pull.video_pack[j].size;
+                                                if (priv->outFd[i])
+                                                        fwrite(ptr, 1, len, priv->outFd[i]);
+                                                if (priv->outFd)
+                                                        fflush(priv->outFd[i]);
+                                        }
+
+                                        // release data
+                                        ret = hd_videoenc_release_out_buf(
+                                                        priv->stream[0].enc_path,
+                                                        &data_pull);
+                                        if (ret != HD_OK) {
+                                                printf("enc_release error=%d !!\r\n", ret);
+                                        }
+                                }
+                        }
+
+                        // mummap for bs buffer
+                        if (vir_addr_main)
+                                hd_common_mem_munmap(
+                                        (void *)vir_addr_main,
+                                        phy_buf_main.buf_info.buf_size);
+
+                        if (priv->outFd[i])
+                                fclose(priv->outFd[i]);
+                }
+        }
+
+        return;
 }
 
 
@@ -1141,8 +1239,8 @@ int nt9856x_video_get_stream_start(struct nt9856x_priv *priv, int vi_num, int st
         priv->gs_stParam.strtype = STREAM_TYPE_VIDEO1;
         priv->gs_v2Param.bThreadStart = HI_TRUE;
         priv->gs_v2Param.strtype = STREAM_TYPE_VIDEO2;
-        priv->gs_mjParam.bThreadStart = HI_TRUE;
-        priv->gs_mjParam.strtype = STREAM_TYPE_MJPEG1;
+        //priv->gs_mjParam.bThreadStart = HI_TRUE;
+        //priv->gs_mjParam.strtype = STREAM_TYPE_MJPEG1;
 
         pthread_create(&priv->gs_VencPid, 0, getStreamProc, (HI_VOID*)&priv->gs_stParam);
         pthread_create(&priv->gs_Video2Pid, 0, getStreamProc, (HI_VOID*)&priv->gs_v2Param);
@@ -1179,6 +1277,7 @@ int nt9856x_video_stop(struct nt9856x_priv *priv)
                 hd_videocap_stop(priv->stream[0].cap_path);
                 hd_videoproc_stop(priv->stream[0].proc_path);
         }
+
 	hd_videoenc_stop(priv->stream[0].enc_path);
 
 	hd_videoproc_stop(priv->stream[1].proc_path);

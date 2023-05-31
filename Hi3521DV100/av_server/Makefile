@@ -17,6 +17,7 @@ INC_FLAGS :=-I../soc_wraper/include
 INC_FLAGS +=-I$(TARAAPI_DIR)/include
 INC_FLAGS +=-I$(SDK_PATH)/../ipnc_app/interface/inc
 INC_FLAGS +=-I$(SDK_PATH)/../opensource/iniparser/src
+INC_FLAGS +=-I$(MPP_PATH)/include
 INC_FLAGS +=-I$(MPP_PATH)/ahd_app_sample/ahd_app
 INC_FLAGS +=-I$(MPP_PATH)/ahd_app_sample/video_decoder
 INC_FLAGS +=-I$(MPP_PATH)/ahd_app_sample/video_decoder/api
