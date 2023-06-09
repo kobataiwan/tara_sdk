@@ -17,6 +17,7 @@ all:
 	make apps
 
 apps:
+	make -C $(IPNC_INSTALL_DIR)/opensource/iniparser
 	make -C $(IPNC_INSTALL_DIR)/ipnc_app/interface
 	make -C $(IPNC_INSTALL_DIR)/ipnc_app/network
 	make -C $(IPNC_INSTALL_DIR)/tara_api
@@ -48,6 +49,7 @@ clean:	$(CLEANSUBDIRS)
 	make -f $(IPNC_INSTALL_DIR)/$(CHIP_NAME)/soc_wraper/hiapi.mk clean
 	make -C $(IPNC_INSTALL_DIR)/ipnc_app/network clean
 	make -C $(IPNC_INSTALL_DIR)/ipnc_app/interface clean
+	make -C $(IPNC_INSTALL_DIR)/opensource/iniparser clean
 	
 depend:
 	
